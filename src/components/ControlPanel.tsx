@@ -4,11 +4,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Sparkles, Settings2, Download } from "lucide-react";
+import { Sparkles, Settings2, Download, Info } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AudioPlayer } from "./AudioPlayer";
 import { mergeAudioFiles, MergedAudioResult } from "@/lib/audioProcessor";
+import { MixMode } from "@/lib/transitionEngine";
+import { getTransitionDescription } from "@/lib/transitionEngine";
+import { Badge } from "@/components/ui/badge";
 
 interface ControlPanelProps {
   showPro: boolean;
@@ -19,8 +22,7 @@ interface ControlPanelProps {
 }
 
 export const ControlPanel = ({ showPro, onTogglePro, hasFiles, trackA, trackB }: ControlPanelProps) => {
-  const [transitionStyle, setTransitionStyle] = useState("auto");
-  const [transitionLength, setTransitionLength] = useState("standard");
+  const [mixMode, setMixMode] = useState<MixMode>("neutral");
   const [crossfadeDuration, setCrossfadeDuration] = useState([8]);
   const [mergedAudio, setMergedAudio] = useState<MergedAudioResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -33,17 +35,23 @@ export const ControlPanel = ({ showPro, onTogglePro, hasFiles, trackA, trackB }:
     }
 
     setIsProcessing(true);
-    const toastId = toast.loading("Analyzing and merging tracks...", {
-      description: "Processing audio files with crossfade transition"
+    const toastId = toast.loading("Analyzing tracks with AI...", {
+      description: "Detecting BPM, key, energy, and planning intelligent transition"
     });
 
     try {
-      const result = await mergeAudioFiles(trackA, trackB, crossfadeDuration[0]);
+      const result = await mergeAudioFiles(
+        trackA, 
+        trackB, 
+        crossfadeDuration[0],
+        mixMode
+      );
       setMergedAudio(result);
       
-      toast.success("Merge complete!", {
+      const description = getTransitionDescription(result.analysis.plan);
+      toast.success("Intelligent merge complete!", {
         id: toastId,
-        description: "Your tracks have been merged successfully"
+        description: `${description} | ${result.analysis.trackA.bpm.toFixed(0)} BPM (${result.analysis.trackA.camelot}) → ${result.analysis.trackB.bpm.toFixed(0)} BPM (${result.analysis.trackB.camelot})`
       });
     } catch (error) {
       console.error("Merge error:", error);
@@ -95,37 +103,51 @@ export const ControlPanel = ({ showPro, onTogglePro, hasFiles, trackA, trackB }:
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Transition Style</Label>
-              <Select value={transitionStyle} onValueChange={setTransitionStyle}>
+              <Label>Mix Mode</Label>
+              <Select value={mixMode} onValueChange={(v) => setMixMode(v as MixMode)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="auto">Auto (Recommended)</SelectItem>
-                  <SelectItem value="crossfade">Smart Crossfade</SelectItem>
-                  <SelectItem value="eqsweep">EQ-Sweep Blend</SelectItem>
-                  <SelectItem value="drumswap">Drum Swap</SelectItem>
-                  <SelectItem value="vocal">Vocal-Aware</SelectItem>
-                  <SelectItem value="hardcut">Hard Cut</SelectItem>
-                  <SelectItem value="stutter">Stutter-Entry</SelectItem>
+                  <SelectItem value="neutral">Neutral (Auto-Select)</SelectItem>
+                  <SelectItem value="festival">Festival (Aggressive FX)</SelectItem>
+                  <SelectItem value="club_smooth">Club Smooth (Long Blends)</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                AI analyzes tempo, key, energy & vocals to choose the best transition
+              </p>
             </div>
 
-            <div className="space-y-2">
-              <Label>Transition Length</Label>
-              <Select value={transitionLength} onValueChange={setTransitionLength}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="short">Short (4 bars)</SelectItem>
-                  <SelectItem value="standard">Standard (8 bars)</SelectItem>
-                  <SelectItem value="long">Long (16 bars)</SelectItem>
-                  <SelectItem value="auto">Auto</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {mergedAudio && (
+              <div className="p-3 bg-secondary/50 rounded-lg space-y-2">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold">Analysis Results</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div className="text-muted-foreground">Track A</div>
+                    <div className="font-medium">{mergedAudio.analysis.trackA.bpm.toFixed(1)} BPM</div>
+                    <Badge variant="outline" className="mt-1">{mergedAudio.analysis.trackA.camelot}</Badge>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Track B</div>
+                    <div className="font-medium">{mergedAudio.analysis.trackB.bpm.toFixed(1)} BPM</div>
+                    <Badge variant="outline" className="mt-1">{mergedAudio.analysis.trackB.camelot}</Badge>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-border/50">
+                  <div className="text-muted-foreground text-xs">Transition Style</div>
+                  <div className="font-medium text-sm capitalize">
+                    {mergedAudio.analysis.plan.style.replace('_', ' ')}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {getTransitionDescription(mergedAudio.analysis.plan)}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <Button 
