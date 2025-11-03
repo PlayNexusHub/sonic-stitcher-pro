@@ -58,6 +58,8 @@ const Index = () => {
               showPro={showPro}
               onTogglePro={() => setShowPro(!showPro)}
               hasFiles={!!(trackA && trackB)}
+              trackA={trackA}
+              trackB={trackB}
             />
           </div>
 

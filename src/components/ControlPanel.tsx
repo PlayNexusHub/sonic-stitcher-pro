@@ -7,32 +7,76 @@ import { Switch } from "@/components/ui/switch";
 import { Sparkles, Settings2, Download } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { AudioPlayer } from "./AudioPlayer";
+import { mergeAudioFiles, MergedAudioResult } from "@/lib/audioProcessor";
 
 interface ControlPanelProps {
   showPro: boolean;
   onTogglePro: () => void;
   hasFiles: boolean;
+  trackA: File | null;
+  trackB: File | null;
 }
 
-export const ControlPanel = ({ showPro, onTogglePro, hasFiles }: ControlPanelProps) => {
+export const ControlPanel = ({ showPro, onTogglePro, hasFiles, trackA, trackB }: ControlPanelProps) => {
   const [transitionStyle, setTransitionStyle] = useState("auto");
   const [transitionLength, setTransitionLength] = useState("standard");
   const [crossfadeDuration, setCrossfadeDuration] = useState([8]);
+  const [mergedAudio, setMergedAudio] = useState<MergedAudioResult | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [exportFormat, setExportFormat] = useState("wav24");
 
-  const handleProMerge = () => {
-    if (!hasFiles) {
+  const handleProMerge = async () => {
+    if (!hasFiles || !trackA || !trackB) {
       toast.error("Please upload both tracks first");
       return;
     }
-    toast.success("Analysis started...", {
-      description: "Processing audio files and detecting BPM, key, and beats"
+
+    setIsProcessing(true);
+    const toastId = toast.loading("Analyzing and merging tracks...", {
+      description: "Processing audio files with crossfade transition"
     });
+
+    try {
+      const result = await mergeAudioFiles(trackA, trackB, crossfadeDuration[0]);
+      setMergedAudio(result);
+      
+      toast.success("Merge complete!", {
+        id: toastId,
+        description: "Your tracks have been merged successfully"
+      });
+    } catch (error) {
+      console.error("Merge error:", error);
+      toast.error("Merge failed", {
+        id: toastId,
+        description: error instanceof Error ? error.message : "Unknown error occurred"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleExport = () => {
-    toast.info("Export functionality coming soon", {
-      description: "Will support WAV, MP3, and FLAC formats"
+    if (!mergedAudio) {
+      toast.error("Please merge tracks first");
+      return;
+    }
+
+    const fileName = `merged-track-${Date.now()}.wav`;
+    const link = document.createElement("a");
+    link.href = mergedAudio.url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success("Download started!", {
+      description: `Downloading ${fileName}`
     });
+  };
+
+  const handleStopPlayback = () => {
+    // Optionally clear the merged audio
   };
 
   return (
@@ -86,15 +130,23 @@ export const ControlPanel = ({ showPro, onTogglePro, hasFiles }: ControlPanelPro
 
           <Button 
             onClick={handleProMerge}
-            disabled={!hasFiles}
+            disabled={!hasFiles || isProcessing}
             className="w-full h-12 text-base font-semibold"
             size="lg"
           >
             <Sparkles className="mr-2 h-5 w-5" />
-            Pro Merge
+            {isProcessing ? "Processing..." : "Pro Merge"}
           </Button>
         </div>
       </Card>
+
+      {/* Playback Section */}
+      {mergedAudio && (
+        <AudioPlayer 
+          audioUrl={mergedAudio.url}
+          onStop={handleStopPlayback}
+        />
+      )}
 
       {/* Pro Panel */}
       {showPro && (
@@ -171,7 +223,7 @@ export const ControlPanel = ({ showPro, onTogglePro, hasFiles }: ControlPanelPro
           
           <div className="space-y-2">
             <Label>Format</Label>
-            <Select defaultValue="wav24">
+            <Select value={exportFormat} onValueChange={setExportFormat}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -186,6 +238,7 @@ export const ControlPanel = ({ showPro, onTogglePro, hasFiles }: ControlPanelPro
 
           <Button 
             onClick={handleExport}
+            disabled={!mergedAudio}
             variant="outline"
             className="w-full"
           >
