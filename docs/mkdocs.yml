@@ -1,0 +1,49 @@
+site_name: Sonic Stitcher Pro
+site_description: Sonic Stitcher Pro - Professional software application
+repo_url: https://github.com/PlayNexusHub/sonic-stitcher-pro
+repo_name: PlayNexusHub/sonic-stitcher-pro
+site_author: PlayNexusHub
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - admonition
+  - tables
+
+nav:
+  - Home: index.md
+  - Installation: install.md
+  - Usage Guide: usage.md
+  - API Reference: api.md
+  - Configuration: configuration.md
+  - Troubleshooting: troubleshooting.md
+  - Developer Guide: developer_guide.md
+  - FAQ: faq.md
+  - Changelog: changelog.md
+
+plugins:
+  - search
